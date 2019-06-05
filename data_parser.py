@@ -1,6 +1,7 @@
 import pandas as pd
 from glob import glob
 import numpy as np
+from random import shuffle
 
 
 class DataParser:
@@ -34,8 +35,77 @@ class DataParser:
         df.index.name = 'student_id'
         return df.round(2)
 
+    def gen_pairs_dat(self):
+        student_ids = list(range(1, self.number_of_students + 1))
+        shuffle(student_ids)
+        middle = int(len(student_ids) / 2)
+        if len(student_ids[:middle]) == len(student_ids[middle:]):
+            df = pd.DataFrame({'partner_1': student_ids[middle:], 'partner_2': student_ids[:middle]})
+        else:
+            df = pd.DataFrame({'partner_1': student_ids[middle:], 'partner_2': student_ids[:middle] + ['']})
+        return df
+
+    def gen_util_dat(self):
+        num_options = len(self.pref_df.columns)
+
+        def randfor6(i):
+            opt_1 = [np.random.random_integers(18, 20), np.random.random_integers(14, 17),
+                     np.random.random_integers(10, 13), np.random.random_integers(4, 9),
+                     np.random.random_integers(0, 3), -1]
+            opt_2 = [np.random.random_integers(17, 20), np.random.random_integers(14, 16),
+                     np.random.random_integers(11, 13), np.random.random_integers(4, 10),
+                     np.random.random_integers(0, 3), -1]
+            opt_3 = [np.random.random_integers(16, 20), np.random.random_integers(12, 15),
+                     np.random.random_integers(9, 11), np.random.random_integers(3, 8),
+                     np.random.random_integers(0, 2), -1]
+            temp = i % 3
+            if temp == 0:
+                return opt_1
+            elif temp == 1:
+                return opt_2
+            else:
+                return opt_3
+
+        def randfor7(i):
+            opt_1 = [np.random.random_integers(18, 20), np.random.random_integers(14, 17),
+                     np.random.random_integers(10, 13), np.random.random_integers(4, 9),
+                     np.random.random_integers(2, 3), np.random.random_integers(0, 1), -1]
+            opt_2 = [np.random.random_integers(17, 20), np.random.random_integers(14, 16),
+                     np.random.random_integers(9, 13), np.random.random_integers(5, 8),
+                     np.random.random_integers(3, 4), np.random.random_integers(0, 2), -1]
+            opt_3 = [np.random.random_integers(19, 20), np.random.random_integers(15, 18),
+                     np.random.random_integers(11, 14), np.random.random_integers(6, 10),
+                     np.random.random_integers(3, 5), np.random.random_integers(0, 2), -1]
+            temp = i % 3
+            if temp == 0:
+                return opt_1
+            elif temp == 1:
+                return opt_2
+            else:
+                return opt_3
+
+        utils_dict = {}
+        if num_options == 6:
+            for i in range(1, self.number_of_students + 1):
+                utils_dict[i] = randfor6(i)
+        elif num_options == 7:
+            for i in range(1, self.number_of_students + 1):
+                utils_dict[i] = randfor7(i)
+        else:
+            print('Error!')
+            exit()
+        df = pd.DataFrame.from_dict(utils_dict, orient='index')
+        df.columns = self.pref_df.columns
+        df.index.name = 'student_id'
+        return df
+
     def write_df(self, df: pd.DataFrame, dat_type):
-        df.to_csv(f'./data/train_data/{dat_type}_{self.file_name.replace("toc", "dat")}')
+        if dat_type == 'pairs':
+            index = False
+        else:
+            index = True
+        df.to_csv(f'./data/train_data/{dat_type}_{self.file_name.replace("toc", "dat")}', index=index)
+        # print(df)
 
 
 def read_files():
@@ -43,9 +113,18 @@ def read_files():
     # toc_files = glob('./data/*.soi')
     for toc_file in toc_files:
         parser = DataParser(toc_file)
+
+        parser.write_df(parser.gen_util_dat(), 'util')
+        parser.write_df(parser.gen_pairs_dat(), 'pairs')
         parser.write_df(parser.gen_grades_dat(), 'grades')
         parser.write_df(parser.pref_df, 'students_pref')
-        
+
+
+def testing(file):
+    parser = DataParser(file)
+    print(parser.pref_df.describe())
+
 
 if __name__ == '__main__':
     read_files()
+    # testing('data/train_data/4.toc')
