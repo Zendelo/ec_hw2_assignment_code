@@ -74,6 +74,18 @@ class Student:
             self.rejects += 1
         self.set_top_pref()
 
+    def test_offer(self, proj_nominee: int):
+        """Returns True if the input project is preferable"""
+        try:
+            candidate_pref = self.pref_list.index(proj_nominee)
+        except ValueError:
+            return False
+        try:
+            cur_pref = self.pref_list.index(self.project.pid)
+        except ValueError:
+            cur_pref = self.max_rejects
+        return True if cur_pref > candidate_pref else False
+
     def get_utility(self):
         if self.main_partner:
             return self.utils[self.rejects]
@@ -222,27 +234,38 @@ def task_two(pref_df, grades_df, utils_df, pairs_df):
     return total_welfare
 
 
-def is_blocking(student, suspected_blocking, students_dict):
+# def is_proj_better(student, candidate_pid):
+#     """Check if candidate project is better than current project"""
+#     try:
+#         proj_pref = student.pref_list.index(candidate_pid)
+#     except ValueError:
+#         proj_pref = student.max_rejects
+#     try:
+#         cur_pref = student.pref_list.index(student.project.pid)
+#     except ValueError:
+#         cur_pref = student.max_rejects
+#
+#     if proj_pref < cur_pref:
+#         print('Blocking!')
+#         print(f'sid1: {student.sid} sid2: {suspect_id}')
+#         print(f'pid1: {student.project.pid} pid2: {suspect.project.pid}\n')
+#         return student.sid, suspect_id
+
+
+def test_blocking(student, suspected_blocking, students_dict):
     """If found blocking pair, both students are removed from the suspects set and return True"""
     cur_project = student.project
     for suspect_id in suspected_blocking:
         suspect = students_dict[suspect_id]
         if suspect is student:
             continue
-        if cur_project.test_offer(suspect):  # test if the project prefers other student
-            try:
-                cur_pref = suspect.pref_list.index(suspect.project.pid)
-            except ValueError:
-                cur_pref = suspect.max_rejects
-            try:
-                proj_pref = suspect.pref_list.index(cur_project.pid)
-            except ValueError:
-                proj_pref = suspect.max_rejects
-            if proj_pref < cur_pref:
+        if cur_project.test_offer(suspect) and student.test_offer(suspect.project.pid):
+            if suspect.test_offer(cur_project.pid) and suspect.project.test_offer(student):
                 print('Blocking!')
                 print(f'sid1: {student.sid} sid2: {suspect_id}')
                 print(f'pid1: {student.project.pid} pid2: {suspect.project.pid}\n')
                 return student.sid, suspect_id
+
     return None
 
 
@@ -253,15 +276,13 @@ def find_blocking_pairs(students_dict):
         if student.pref_list[0] == student.project.pid:
             continue
         suspects.add(sid)
-    suspects_copy = suspects.copy()
-    for sid in suspects_copy:
-        res = is_blocking(students_dict[sid], suspects, students_dict)
-        if res:
-            suspects.discard(res[0])
-            suspects.discard(res[1])
+    counter = 0
+    for sid in suspects:
+        blocking_pair = test_blocking(students_dict[sid], suspects, students_dict)
+        if blocking_pair:
+            counter += 1
 
-    print(f'Suspected in blocking {suspects_copy}')
-    print(f'Not guilty in blocking {suspects}')
+    print(f'number of blocking pairs {counter}')
 
 
 def update_students_values(students_dict, projects_dict):

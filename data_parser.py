@@ -7,8 +7,8 @@ from random import shuffle
 class DataParser:
     def __init__(self, data_file):
         self.file = data_file
-        self.file_name = data_file.rsplit('\\')[-1]  # For Windows
-        # self.file_name = data_file.rsplit('/')[-1]  # For Linux
+        # self.file_name = data_file.rsplit('\\')[-1]  # For Windows
+        self.file_name = data_file.rsplit('/')[-1]  # For Linux
         self.number_of_projects = None  # will be set by the parsing method
         self.pref_df = self.pref_file_parser()
         self.number_of_students = len(self.pref_df)
@@ -113,11 +113,24 @@ def read_files():
     # toc_files = glob('./data/*.soi')
     for toc_file in toc_files:
         parser = DataParser(toc_file)
-
+        big_df = merge_data_files(toc_file)
+        parser.write_df(big_df, 'preferences')
         parser.write_df(parser.gen_util_dat(), 'util')
         parser.write_df(parser.gen_pairs_dat(), 'pairs')
         parser.write_df(parser.gen_grades_dat(), 'grades')
         parser.write_df(parser.pref_df, 'students_pref')
+
+
+def merge_data_files(toc_file):
+    n = toc_file.split('/')[-1].split('.')[0]
+    pref_df = pd.read_csv(f'data/train_data/students_pref_{n}.dat', index_col='student_id')
+    utils_df = pd.read_csv(f'data/train_data/util_{n}.dat', index_col='student_id')
+    new_dict = {}
+    for sid in pref_df.index:
+        new_dict[sid] = dict(zip(pref_df.loc[sid][:-1], utils_df.loc[sid][:-1]))
+    df = pd.DataFrame.from_dict(new_dict, orient='index').fillna(-1).astype(int)
+    df = df.reindex(sorted(df.columns), axis=1)
+    return df
 
 
 def testing(file):
@@ -127,4 +140,5 @@ def testing(file):
 
 if __name__ == '__main__':
     read_files()
+    # merge_data_files()
     # testing('data/train_data/4.toc')
