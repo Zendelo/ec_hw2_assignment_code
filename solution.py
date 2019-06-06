@@ -1,7 +1,8 @@
 import sys
+from collections import defaultdict
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 
 class Student:
@@ -20,6 +21,7 @@ class Student:
         self.utils = utils
         self.pair = None
         self.main_partner = True
+        self.values = utils
 
     def assign_proj(self, proj_id):
         self.project = proj_id
@@ -50,6 +52,21 @@ class Student:
                     print(f'Something strange with student :{self.sid}\n check his projects pref list')
                     sys.exit(f'Something strange with student :{self.sid}\n check his projects pref list')
 
+    def update_values_by_prices(self, projects_dict):
+        for i, pid in enumerate(self.pref_list[:-1]):
+            self.values[i] = self.utils[i] - projects_dict[pid].price
+
+    def get_top_projects_by_util(self) -> set:
+        indices = set()
+        top_pids = set()
+        max_val = max(self.utils)
+        for j, val in enumerate(self.utils):
+            if val == max_val:
+                indices.add(j)
+        for j in indices:
+            top_pids.add(self.pref_list[j])
+        return top_pids
+
     def reject_student(self):
         self.project = None
         Student.free_students.add(self.sid)
@@ -74,6 +91,7 @@ class Project:
         self.grade_type = 'cs_grade' if pid % 2 else 'math_grade'
         self.proposals = {}
         self.student = None
+        self.price = 0
 
     def is_free(self):
         return bool(not self.student)
@@ -82,13 +100,17 @@ class Project:
         if self.student:
             self.student.reject_student()
         self.student = student
+        student.assign_proj(self)
 
     def test_offer(self, nominee):
         if getattr(nominee, self.grade_type) > getattr(self.student, self.grade_type):
-            self.accept_offer(nominee)
+            return True
 
     def add_offer(self, student):
         self.proposals[student.sid] = getattr(student, self.grade_type)
+
+    def raise_price(self):
+        self.price += 1
 
 
 def create_students(df, grades_df, utils_df):
@@ -124,7 +146,7 @@ def respond_offers(students_dict, projects_dict):
         for rej_sid in project.proposals:
             students_dict[rej_sid].reject_student()
         project.proposals = {}
-        students_dict[top_sid].assign_proj(project)
+        project.accept_offer(students_dict[top_sid])
 
 
 def deferred_acceptance(students_dict, projects_dict):
@@ -133,19 +155,29 @@ def deferred_acceptance(students_dict, projects_dict):
         respond_offers(students_dict, projects_dict)
 
 
+def write_matching(matching: dict, task):
+    df = pd.DataFrame.from_dict(matching, orient='index')
+    df.to_csv(f'matching_task_{task}.csv', header=['pid'], index_label='sid')
+    print(f'\nmatching_task_{task}.csv was written\n')
+
+
 def task_one(pref_df, grades_df, util_df):
     students_dict = create_students(pref_df, grades_df, util_df)
     projects_dict = create_projects(pref_df)
     deferred_acceptance(students_dict, projects_dict)
     total_welfare = 0
+    matching = {}
     for sid, student in students_dict.items():
         if student.is_free():
             print('wtf!')
             sys.exit(sid)
+        matching[sid] = student.project.pid
         total_welfare += student.get_utility()
         # print(f'Student {sid} -> {student.project.pid}')
         # print(f'utility: {student.get_utility() :.2f}')
         # print(f'rejected: {student.rejects}\n')
+    find_blocking_pairs(students_dict)
+    write_matching(matching, 1)
     return total_welfare
 
 
@@ -175,20 +207,99 @@ def task_two(pref_df, grades_df, utils_df, pairs_df):
     projects_dict = create_projects(pref_df)
     deferred_acceptance(students_dict, projects_dict)
     total_welfare = 0
+    matching = {}
     for sid, student in students_dict.items():
         if student.is_free():
             print('wtf!')
             sys.exit(sid)
+        matching[sid] = student.project.pid
         total_welfare += student.get_utility()
         # print(f'Student {sid} -> {student.project.pid}')
         # print(f'utility: {student.get_utility() :.2f}')
         # print(f'rejected: {student.rejects}\n')
+    find_blocking_pairs(students_dict)
+    write_matching(matching, 2)
     return total_welfare
 
 
-def market_clearing():
-    # TODO: use utils here to construct market clearing prices
-    x = 1
+def is_blocking(student, suspected_blocking, students_dict):
+    """If found blocking pair, both students are removed from the suspects set and return True"""
+    cur_project = student.project
+    for suspect_id in suspected_blocking:
+        suspect = students_dict[suspect_id]
+        if suspect is student:
+            continue
+        if cur_project.test_offer(suspect):  # test if the project prefers other student
+            try:
+                cur_pref = suspect.pref_list.index(suspect.project.pid)
+            except ValueError:
+                cur_pref = suspect.max_rejects
+            try:
+                proj_pref = suspect.pref_list.index(cur_project.pid)
+            except ValueError:
+                proj_pref = suspect.max_rejects
+            if proj_pref < cur_pref:
+                print('Blocking!')
+                print(f'sid1: {student.sid} sid2: {suspect_id}')
+                print(f'pid1: {student.project.pid} pid2: {suspect.project.pid}\n')
+                return student.sid, suspect_id
+    return None
+
+
+def find_blocking_pairs(students_dict):
+    suspects = set()
+    # check if the student got his top priority, if not, might be blocking
+    for sid, student in students_dict.items():
+        if student.pref_list[0] == student.project.pid:
+            continue
+        suspects.add(sid)
+    suspects_copy = suspects.copy()
+    for sid in suspects_copy:
+        res = is_blocking(students_dict[sid], suspects, students_dict)
+        if res:
+            suspects.discard(res[0])
+            suspects.discard(res[1])
+
+    print(f'Suspected in blocking {suspects_copy}')
+    print(f'Not guilty in blocking {suspects}')
+
+
+def update_students_values(students_dict, projects_dict):
+    for sid, student in students_dict.items():
+        student.update_values_by_prices(projects_dict)
+
+
+def make_edges(students_dict):
+    edges_st_pr = defaultdict(set)
+    edges_pr_st = defaultdict(set)
+    for sid, student in students_dict.items():
+        top_projs = student.get_top_projects_by_util()
+        edges_st_pr[sid].update(top_projs)
+        for pid in top_projs:
+            edges_pr_st[pid].add(sid)
+    return edges_st_pr, edges_pr_st
+
+
+def market_clearing(pref_df, grades_df, util_df):
+    students_dict = create_students(pref_df, grades_df, util_df)
+    projects_dict = create_projects(pref_df)
+
+    update_students_values(students_dict, projects_dict)
+    edges_st_pr, edges_pr_st = make_edges(students_dict)
+    constricted_set = set()
+    suspects = set()
+    for pid, st_set in edges_pr_st.items():
+        if len(st_set) > 1:
+            suspects.add(pid)
+            neighb = len(st_set)
+            for sid in st_set:
+                suspects.update(pid)
+    print(suspects)
+    print(edges_pr_st)
+    # TODO: need to implement BFS to look for matching and constricted sets
+    # print(len(edges_pr_st))
+    # print(edges_st_pr)
+    # print(len(edges_st_pr))
 
 
 def main(n):
@@ -201,9 +312,10 @@ def main(n):
     welfare_2 = task_two(pref_df, grades_df, utils_df, pairs_df)
     print(welfare_1)
     print(welfare_2)
+    # market_clearing(pref_df, grades_df, utils_df)
 
 
 if __name__ == '__main__':
-    for i in range(3, 9):
-        main(i)
-    # main(5)
+    # for i in range(3, 9):
+    #     main(i)
+    main(5)
