@@ -37,7 +37,7 @@ def main(n):
 
 
 if __name__ == '__main__':
-    for i in range(1, 5):
-        main(i)
+    # for i in range(1, 5):
+    #     main(i)
     main('test')
     # main(3)

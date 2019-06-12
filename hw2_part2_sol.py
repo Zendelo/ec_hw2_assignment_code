@@ -234,9 +234,12 @@ def make_edges(students_dict):
     return edges
 
 
-def is_constricted(susp_set):  # TODO: Look for edge cases, something here doesn't work
+def is_constricted(susp_set, graph):  # TODO: Look for edge cases, something here doesn't work
     students = set([i for li in susp_set.values() for i in li])
-    return len(students) > len(susp_set)
+    neighbors = set()
+    for sid in students:
+        neighbors.update(set(graph.neighbors(sid)))
+    return len(students) > len(neighbors)
 
 
 def find_constricted_set(graph, projects):
@@ -245,16 +248,21 @@ def find_constricted_set(graph, projects):
     for pid in projects:
         if graph.degree(pid) > 1:
             suspect_dict[pid] = list(graph.neighbors(pid))
-    if is_constricted(suspect_dict):
-        const_set = suspect_dict.keys()
-        # print('all set')
-    else:
-        # print('NOT all set')
-        for i in range(len(suspect_dict) - 1, 0, -1):
-            sub_sets = combinations(suspect_dict, i)
-            for sub_set in sub_sets:
-                if is_constricted({k: suspect_dict[k] for k in sub_set}):
-                    return sub_set
+    # if is_constricted(suspect_dict, graph):
+    #     const_set = suspect_dict.keys()
+    #     print('all set')
+    # else:
+    #     print('NOT all set')
+    #     for i in range(1, len(suspect_dict)):
+    #         sub_sets = combinations(suspect_dict, i)
+    #         for sub_set in sub_sets:
+    #             if is_constricted({k: suspect_dict[k] for k in sub_set}, graph):
+    #                 return sub_set
+    for i in range(1, len(suspect_dict) + 1):
+        sub_sets = combinations(suspect_dict, i)
+        for sub_set in sub_sets:
+            if is_constricted({k: suspect_dict[k] for k in sub_set}, graph):
+                return sub_set
     return const_set
 
 
