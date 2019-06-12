@@ -239,7 +239,7 @@ def recon_matching(matching_file, n):
     pairs_df = pd.read_csv(f'data/pairs_{n}.csv', index_col=False, na_filter=True)
     preferences_df = pd.read_csv(f'data/preferences_{n}.csv', index_col='student_id')
     preferences_df.columns = preferences_df.columns.astype(int)
-    matching_df = pd.read_csv(matching_file, index_col='sid')
+    matching_df = pd.read_csv(matching_file, index_col='sid').sort_index()
     projects_dict = create_projects(preferences_df)
     if 'coupled' in matching_file:
         students_dict = merge_students(preferences_df, grades_df, pairs_df)
