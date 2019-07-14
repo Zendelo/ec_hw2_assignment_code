@@ -3,6 +3,10 @@ import sys
 import numpy as np
 import pandas as pd
 
+data_dir = 'data/train_data_comp/'
+# data_dir = 'data/train_data'
+# data_dir = 'data/'
+
 
 class Student:
     free_students = set()
@@ -46,14 +50,14 @@ class Student:
     def test_offer(self, proj_nominee: int):
         """Returns True if the input project is preferable"""
         try:
-            candidate_pref = self.pref_list.index(proj_nominee)
+            candidate_pref_index = self.pref_list.index(proj_nominee)
         except ValueError:
             return False
         try:
-            cur_pref = self.pref_list.index(self.project.pid)
+            cur_pref_index = self.pref_list.index(self.project.pid)
         except ValueError:
-            cur_pref = self.max_rejects
-        return True if cur_pref > candidate_pref else False
+            cur_pref_index = self.max_rejects
+        return True if self.utils[candidate_pref_index] > self.utils[cur_pref_index] else False
 
     def get_utility(self):
         try:
@@ -84,7 +88,12 @@ class Project:
             self.partner_student = student.pair
 
     def test_offer(self, nominee, student_candidate=None):
-        student = student_candidate if student_candidate else self.main_student
+        if student_candidate:
+            student = student_candidate
+        elif self.main_student:
+            student = self.main_student
+        else:
+            return True
         if getattr(nominee, self.grade_type) > getattr(student, self.grade_type):
             return True
         else:
@@ -197,6 +206,7 @@ def test_blocking(student, suspected_blocking, students_dict):
             continue
         if cur_project.test_offer(suspect, student) and student.test_offer(suspect.project.pid):
             if suspect.test_offer(cur_project.pid) and suspect.project.test_offer(student, suspect):
+                print(student.sid, suspect.sid)
                 counter += 1
     return counter
 
@@ -235,9 +245,9 @@ def reconstruct_matching_pairs(students_dict, projects_dict, matching_df):
 
 
 def recon_matching(matching_file, n):
-    grades_df = pd.read_csv(f'data/grades_{n}.csv', index_col='student_id')
-    pairs_df = pd.read_csv(f'data/pairs_{n}.csv', index_col=False, na_filter=True)
-    preferences_df = pd.read_csv(f'data/preferences_{n}.csv', index_col='student_id')
+    grades_df = pd.read_csv(f'{data_dir}/grades_{n}.csv', index_col='student_id')
+    pairs_df = pd.read_csv(f'{data_dir}/pairs_{n}.csv', index_col=False, na_filter=True)
+    preferences_df = pd.read_csv(f'{data_dir}/preferences_{n}.csv', index_col='student_id')
     preferences_df.columns = preferences_df.columns.astype(int)
     matching_df = pd.read_csv(matching_file, index_col='sid').sort_index()
     projects_dict = create_projects(preferences_df)
@@ -251,8 +261,8 @@ def recon_matching(matching_file, n):
 
 
 def run_deferred_acceptance(n) -> dict:
-    grades_df = pd.read_csv(f'data/grades_{n}.csv', index_col='student_id')
-    preferences_df = pd.read_csv(f'data/preferences_{n}.csv', index_col='student_id')
+    grades_df = pd.read_csv(f'{data_dir}/grades_{n}.csv', index_col='student_id')
+    preferences_df = pd.read_csv(f'{data_dir}/preferences_{n}.csv', index_col='student_id')
     preferences_df.columns = preferences_df.columns.astype(int)
     matching_dict = task_one(preferences_df, grades_df)
     # return {1: 2, 2: 3, 3: 4, 4: 1, 5: 5}
@@ -260,9 +270,9 @@ def run_deferred_acceptance(n) -> dict:
 
 
 def run_deferred_acceptance_for_pairs(n) -> dict:
-    grades_df = pd.read_csv(f'data/grades_{n}.csv', index_col='student_id')
-    pairs_df = pd.read_csv(f'data/pairs_{n}.csv', index_col=False, na_filter=True)
-    preferences_df = pd.read_csv(f'data/preferences_{n}.csv', index_col='student_id')
+    grades_df = pd.read_csv(f'{data_dir}/grades_{n}.csv', index_col='student_id')
+    pairs_df = pd.read_csv(f'{data_dir}/pairs_{n}.csv', index_col=False, na_filter=True)
+    preferences_df = pd.read_csv(f'{data_dir}/preferences_{n}.csv', index_col='student_id')
     preferences_df.columns = preferences_df.columns.astype(int)
     matching_dict = task_two(preferences_df, grades_df, pairs_df)
     # return {1: 2, 2: 2, 3: 3, 4: 3, 5: 5}

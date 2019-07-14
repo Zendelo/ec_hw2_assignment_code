@@ -5,6 +5,12 @@ import pandas as pd
 import networkx as nx
 from itertools import combinations
 
+data_dir = 'data/train_data_comp/'
+
+
+# data_dir = 'data/train_data/'
+# data_dir = 'data/'
+
 
 class Student:
     free_students = set()
@@ -236,10 +242,15 @@ def make_edges(students_dict):
 
 def is_constricted(susp_set, graph):  # TODO: Look for edge cases, something here doesn't work
     students = set([i for li in susp_set.values() for i in li])
-    neighbors = set()
-    for sid in students:
-        neighbors.update(set(graph.neighbors(sid)))
-    return len(students) > len(neighbors)
+    for i in range(2, len(students) + 1):
+        sub_sets = combinations(students, i)
+        for sub_set in sub_sets:
+            neighbors = set()
+            for sid in sub_set:
+                neighbors.update(set(graph.neighbors(sid)))
+            if len(sub_set) > len(neighbors):
+                return True
+    return False
 
 
 def find_constricted_set(graph, projects):
@@ -260,6 +271,8 @@ def find_constricted_set(graph, projects):
     #                 return sub_set
     for i in range(1, len(suspect_dict) + 1):
         sub_sets = combinations(suspect_dict, i)
+        if i > 3:
+            print(i)
         for sub_set in sub_sets:
             if is_constricted({k: suspect_dict[k] for k in sub_set}, graph):
                 return sub_set
@@ -273,6 +286,7 @@ def update_prices(const_set, projects_dictionary):
 
 def market_clearing(pref_df, grades_df):
     students_dict = create_students(pref_df, grades_df)
+    # students_dict = merge_students(pref_df, grades_df, pairs_df)
     projects_dict = create_projects(pref_df)
     while True:
         update_students_values(students_dict, projects_dict)
@@ -291,17 +305,18 @@ def market_clearing(pref_df, grades_df):
         # print(f'const set {constricted_set}')
         update_prices(constricted_set, projects_dict)
     # print(max_matching)
-    return {k: max_matching[k] for k in students_dict}
+    return {k: max_matching[k] for k in students_dict}, {pid: project.price for pid, project in projects_dict.items()}
 
 
 def run_market_clearing(n):
-    grades_df = pd.read_csv(f'data/grades_{n}.csv', index_col='student_id')
-    preferences_df = pd.read_csv(f'data/preferences_{n}.csv', index_col='student_id')
+    # pairs_df = pd.read_csv(f'{data_dir}/pairs_{n}.csv', index_col=False, na_filter=True)
+    grades_df = pd.read_csv(f'{data_dir}/grades_{n}.csv', index_col='student_id')
+    preferences_df = pd.read_csv(f'{data_dir}/preferences_{n}.csv', index_col='student_id')
     preferences_df.columns = preferences_df.columns.astype(int)
-    matching_dict = market_clearing(preferences_df, grades_df)
+    matching_dict, prices_dict = market_clearing(preferences_df, grades_df)
     # return {1: 2, 2: 3, 3: 4, 4: 1, 5: 5}
     # print(matching_dict)
-    return matching_dict
+    return matching_dict, prices_dict
 
 
 def reconstruct_matching(students_dict, projects_dict, matching_df: pd.DataFrame):
@@ -323,11 +338,11 @@ def reconstruct_matching_pairs(students_dict, projects_dict, matching_df):
 
 
 def recon_matching(matching_file, n):
-    grades_df = pd.read_csv(f'data/grades_{n}.csv', index_col='student_id')
-    pairs_df = pd.read_csv(f'data/pairs_{n}.csv', index_col=False, na_filter=True)
-    preferences_df = pd.read_csv(f'data/preferences_{n}.csv', index_col='student_id')
+    grades_df = pd.read_csv(f'{data_dir}/grades_{n}.csv', index_col='student_id')
+    pairs_df = pd.read_csv(f'{data_dir}/pairs_{n}.csv', index_col=False, na_filter=True)
+    preferences_df = pd.read_csv(f'{data_dir}/preferences_{n}.csv', index_col='student_id')
     preferences_df.columns = preferences_df.columns.astype(int)
-    matching_df = pd.read_csv(matching_file, index_col='sid').sort_index(inplace=True)
+    matching_df = pd.read_csv(matching_file, index_col='sid').sort_index()
     projects_dict = create_projects(preferences_df)
     if 'coupled' in matching_file:
         students_dict = merge_students(preferences_df, grades_df, pairs_df)

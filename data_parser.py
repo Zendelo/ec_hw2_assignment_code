@@ -1,7 +1,7 @@
 import pandas as pd
 from glob import glob
 import numpy as np
-from random import shuffle
+from random import shuffle, sample, choice
 
 
 class DataParser:
@@ -23,7 +23,16 @@ class DataParser:
             for i, line in enumerate(file):
                 if i > projects_len:
                     li.append(eval(f'[{line}]'))
-        df = pd.DataFrame.from_records(li).drop(0, axis=1).applymap(str)
+        df = pd.DataFrame.from_records(li).drop(0, axis=1)
+        df = df.drop(len(df.columns), axis=1)
+        uniq_projects = set()
+        for row in df.values:
+            uniq_projects.update(set(row))
+        rename_pid = {}
+        for i, pid in enumerate(uniq_projects):
+            rename_pid[pid] = i
+        df = df.applymap(lambda x: rename_pid[x])
+        df = df.applymap(lambda x: x % len(df)).applymap(str)
         df.insert(loc=0, column='student_id', value=range(1, len(df) + 1))
         return df.set_index('student_id')
 
@@ -48,16 +57,13 @@ class DataParser:
     def gen_util_dat(self):
         num_options = len(self.pref_df.columns)
 
-        def randfor6(i):
-            opt_1 = [np.random.random_integers(18, 20), np.random.random_integers(14, 17),
-                     np.random.random_integers(10, 13), np.random.random_integers(4, 9),
-                     np.random.random_integers(0, 3), -1]
-            opt_2 = [np.random.random_integers(17, 20), np.random.random_integers(14, 16),
-                     np.random.random_integers(11, 13), np.random.random_integers(4, 10),
-                     np.random.random_integers(0, 3), -1]
-            opt_3 = [np.random.random_integers(16, 20), np.random.random_integers(12, 15),
-                     np.random.random_integers(9, 11), np.random.random_integers(3, 8),
-                     np.random.random_integers(0, 2), -1]
+        def randfor5(i):
+            opt_1 = [np.random.randint(18, 21), np.random.randint(14, 18), np.random.randint(10, 14),
+                     np.random.randint(4, 10), np.random.randint(-1, 4)]
+            opt_2 = [np.random.randint(17, 21), np.random.randint(14, 17), np.random.randint(11, 14),
+                     np.random.randint(4, 11), np.random.randint(-1, 4)]
+            opt_3 = [np.random.randint(16, 21), np.random.randint(12, 16), np.random.randint(9, 12),
+                     np.random.randint(3, 9), np.random.randint(-1, 3)]
             temp = i % 3
             if temp == 0:
                 return opt_1
@@ -66,16 +72,13 @@ class DataParser:
             else:
                 return opt_3
 
-        def randfor7(i):
-            opt_1 = [np.random.random_integers(18, 20), np.random.random_integers(14, 17),
-                     np.random.random_integers(10, 13), np.random.random_integers(4, 9),
-                     np.random.random_integers(2, 3), np.random.random_integers(0, 1), -1]
-            opt_2 = [np.random.random_integers(17, 20), np.random.random_integers(14, 16),
-                     np.random.random_integers(9, 13), np.random.random_integers(5, 8),
-                     np.random.random_integers(3, 4), np.random.random_integers(0, 2), -1]
-            opt_3 = [np.random.random_integers(19, 20), np.random.random_integers(15, 18),
-                     np.random.random_integers(11, 14), np.random.random_integers(6, 10),
-                     np.random.random_integers(3, 5), np.random.random_integers(0, 2), -1]
+        def randfor6(i):
+            opt_1 = [np.random.randint(18, 21), np.random.randint(14, 18), np.random.randint(10, 14),
+                     np.random.randint(4, 10), np.random.randint(2, 4), np.random.randint(-1, 1)]
+            opt_2 = [np.random.randint(17, 21), np.random.randint(14, 17), np.random.randint(9, 14),
+                     np.random.randint(5, 9), np.random.randint(3, 5), np.random.randint(-1, 3)]
+            opt_3 = [np.random.randint(19, 21), np.random.randint(15, 19), np.random.randint(11, 15),
+                     np.random.randint(6, 11), np.random.randint(3, 6), np.random.randint(-1, 3)]
             temp = i % 3
             if temp == 0:
                 return opt_1
@@ -85,12 +88,12 @@ class DataParser:
                 return opt_3
 
         utils_dict = {}
-        if num_options == 6:
+        if num_options == 5:
+            for i in range(1, self.number_of_students + 1):
+                utils_dict[i] = randfor5(i)
+        elif num_options == 6:
             for i in range(1, self.number_of_students + 1):
                 utils_dict[i] = randfor6(i)
-        elif num_options == 7:
-            for i in range(1, self.number_of_students + 1):
-                utils_dict[i] = randfor7(i)
         else:
             print('Error!')
             exit()
@@ -128,7 +131,7 @@ def merge_data_files(toc_file):
     utils_df = pd.read_csv(f'data/train_data/util_{n}.csv', index_col='student_id')
     new_dict = {}
     for sid in pref_df.index:
-        new_dict[sid] = dict(zip(pref_df.loc[sid][:-1], utils_df.loc[sid][:-1]))
+        new_dict[sid] = dict(zip(pref_df.loc[sid][:], utils_df.loc[sid][:]))
     df = pd.DataFrame.from_dict(new_dict, orient='index').fillna(-1).astype(int)
     df = df.reindex(sorted(df.columns), axis=1)
     df.index.name = 'student_id'
