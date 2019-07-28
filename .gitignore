@@ -106,3 +106,4 @@ venv.bak/
 
 data/
 *.csv
+/ec_2_submissions/hw2_*
