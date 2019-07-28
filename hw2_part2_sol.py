@@ -5,11 +5,11 @@ import pandas as pd
 import networkx as nx
 from itertools import combinations
 
-data_dir = 'data/train_data_comp/'
+# data_dir = 'data/train_data_comp/'
 
 
 # data_dir = 'data/train_data/'
-# data_dir = 'data/'
+data_dir = 'data/'
 
 
 class Student:
@@ -335,6 +335,10 @@ def reconstruct_matching_pairs(students_dict, projects_dict, matching_df):
         else:
             project.partner_student = student
             student.assign_proj(project)
+
+
+def test_market_clearing():
+    """TODO: write a function that tests the prices to be market clearing"""
 
 
 def recon_matching(matching_file, n):

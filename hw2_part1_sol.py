@@ -3,9 +3,9 @@ import sys
 import numpy as np
 import pandas as pd
 
-data_dir = 'data/train_data_comp/'
+# data_dir = 'data/train_data_comp/'
 # data_dir = 'data/train_data'
-# data_dir = 'data/'
+data_dir = 'data/'
 
 
 class Student:
