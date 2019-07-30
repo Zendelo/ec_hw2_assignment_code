@@ -5,6 +5,8 @@ import pandas as pd
 import networkx as nx
 from itertools import combinations
 
+from hw2_part1_sol import recon_matching, calc_total_welfare
+
 # data_dir = 'data/train_data_comp/'
 
 
@@ -170,7 +172,7 @@ def task_one(pref_df, grades_df):
     for sid, student in students_dict.items():
         if student.is_free():
             print('Error! missing matching')
-            sys.exit(sid)
+            return np.nan
         matching[sid] = student.project.pid
     return matching
 
@@ -337,24 +339,47 @@ def reconstruct_matching_pairs(students_dict, projects_dict, matching_df):
             student.assign_proj(project)
 
 
-def test_market_clearing():
+def test_market_clearing(file_name, n):
     """TODO: write a function that tests the prices to be market clearing"""
+    students_dict, projects_dict, prices_df = recon_dicts_with_prices(file_name, n)
+    set_prices(projects_dict, prices_df)
+    update_students_values(students_dict, projects_dict)
+    edges = make_edges(students_dict)
+    graph = nx.Graph(edges)
+    students, projects = nx.bipartite.sets(graph, students_dict)
+    max_matching = nx.bipartite.maximum_matching(graph, students_dict)
+    return len(max_matching) == len(students) * 2
 
 
-def recon_matching(matching_file, n):
+def set_prices(projects: dict, prices: pd.DataFrame):
+    for project in projects.values():
+        project.price = prices.loc[project.pid].price
+
+
+def recon_dicts_with_prices(file_name, n):
     grades_df = pd.read_csv(f'{data_dir}/grades_{n}.csv', index_col='student_id')
-    pairs_df = pd.read_csv(f'{data_dir}/pairs_{n}.csv', index_col=False, na_filter=True)
+    prices_df = pd.read_csv(file_name, index_col='pid')
     preferences_df = pd.read_csv(f'{data_dir}/preferences_{n}.csv', index_col='student_id')
     preferences_df.columns = preferences_df.columns.astype(int)
-    matching_df = pd.read_csv(matching_file, index_col='sid').sort_index()
+    students_dict = create_students(preferences_df, grades_df)
     projects_dict = create_projects(preferences_df)
-    if 'coupled' in matching_file:
-        students_dict = merge_students(preferences_df, grades_df, pairs_df)
-        reconstruct_matching_pairs(students_dict, projects_dict, matching_df)
-    else:
-        students_dict = create_students(preferences_df, grades_df)
-        reconstruct_matching(students_dict, projects_dict, matching_df)
-    return students_dict, projects_dict
+    return students_dict, projects_dict, prices_df
+
+
+# def recon_matching(matching_file, n):
+#     grades_df = pd.read_csv(f'{data_dir}/grades_{n}.csv', index_col='student_id')
+#     pairs_df = pd.read_csv(f'{data_dir}/pairs_{n}.csv', index_col=False, na_filter=True)
+#     preferences_df = pd.read_csv(f'{data_dir}/preferences_{n}.csv', index_col='student_id')
+#     preferences_df.columns = preferences_df.columns.astype(int)
+#     matching_df = pd.read_csv(matching_file, index_col='sid').sort_index()
+#     projects_dict = create_projects(preferences_df)
+#     if 'coupled' in matching_file:
+#         students_dict = merge_students(preferences_df, grades_df, pairs_df)
+#         reconstruct_matching_pairs(students_dict, projects_dict, matching_df)
+#     else:
+#         students_dict = create_students(preferences_df, grades_df)
+#         reconstruct_matching(students_dict, projects_dict, matching_df)
+#     return students_dict, projects_dict
 
 
 def count_blocking_pairs(matching_file, n) -> int:
@@ -363,24 +388,23 @@ def count_blocking_pairs(matching_file, n) -> int:
     return blocking_pairs
     # return 0 if '1' in matching_file else 1
 
-
-def calc_total_welfare(matching_file, n) -> int:
-    students_dict, projects_dict = recon_matching(matching_file, n)
-    total_welfare = 0
-    for sid, student in students_dict.items():
-        if student.is_free():
-            print('Error! missing matching')
-            sys.exit(sid)
-        total_welfare += student.get_utility()
-    # return 73 if 'single' in matching_file else 63
-    return total_welfare
-
-
-def main(n):
-    run_market_clearing(n)
-
-
-if __name__ == '__main__':
-    # for i in range(1, 5):
-    #     main(i)
-    main('test')
+# def calc_total_welfare(matching_file, n) -> int:
+#     students_dict, projects_dict = recon_matching(matching_file, n)
+#     total_welfare = 0
+#     for sid, student in students_dict.items():
+#         if student.is_free():
+#             print('Error! missing matching')
+#             sys.exit(sid)
+#         total_welfare += student.get_utility()
+#     # return 73 if 'single' in matching_file else 63
+#     return total_welfare
+#
+#
+# def main(n):
+#     run_market_clearing(n)
+#
+#
+# if __name__ == '__main__':
+#     # for i in range(1, 5):
+#     #     main(i)
+#     main('test')

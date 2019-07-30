@@ -158,7 +158,7 @@ def task_one(pref_df, grades_df):
     for sid, student in students_dict.items():
         if student.is_free():
             print('Error! missing matching')
-            sys.exit(sid)
+            return np.nan
         matching[sid] = student.project.pid
     return matching
 
@@ -192,7 +192,7 @@ def task_two(pref_df, grades_df, pairs_df):
     for sid, student in students_dict.items():
         if student.is_free():
             print('Error! missing matching')
-            sys.exit(sid)
+            return np.nan
         matching[sid] = student.project.pid
     return matching
 
@@ -206,7 +206,7 @@ def test_blocking(student, suspected_blocking, students_dict):
             continue
         if cur_project.test_offer(suspect, student) and student.test_offer(suspect.project.pid):
             if suspect.test_offer(cur_project.pid) and suspect.project.test_offer(student, suspect):
-                print(student.sid, suspect.sid)
+                print('Blocking pair (students):', student.sid, suspect.sid)
                 counter += 1
     return counter
 
@@ -292,7 +292,7 @@ def calc_total_welfare(matching_file, n) -> int:
     for sid, student in students_dict.items():
         if student.is_free():
             print('Error! missing matching')
-            sys.exit(sid)
+            return np.nan
         total_welfare += student.get_utility()
     # return 73 if 'single' in matching_file else 63
     return total_welfare
